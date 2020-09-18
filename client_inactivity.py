@@ -1,25 +1,25 @@
 from ctypes import Structure, windll, c_uint, sizeof, byref
 import threading
+import sys
 import schedule
 import requests
 import json
+from envparse import env
 from time import sleep
 
-
-# Load client info from .env file
-client = {}
 try:
-    with open(".env", 'r') as f:
-        client = json.load(f)
-except FileNotFoundError:
-    raise Exception(".env File not found")
+  env.read_envfile('.env')
+except:
+  logging.error("Error loading .env file")
+  sys.exit(1)
 
 # print settings
-print("OpenHab item: %s" % client['OHItem'])
-print("Polling every %d seconds" % client['pollSec'])
-print("Inactivity threshold: %d seconds" % client['inactiveThreshold'])
-print("Forced server update every %d seconds" % client['ServerUpdateRate'])
+print("OpenHab item: %s" % env.str('OHItem'))
+print("Polling every %d seconds" % env.int('pollSec'))
+print("Inactivity threshold: %d seconds" % env.int('inactiveThreshold'))
+print("Forced server update every %d seconds" % env.int('ServerUpdateRate'))
 print("-------------------------------------")
+
 
 
 # Windows last input class
@@ -29,10 +29,10 @@ class INACTIVITY:
   #Print out every n seconds the idle time, when moving mouse, this should be < 10
   # https://stackoverflow.com/a/29730972
   def status(self):
-    # threading.Timer(client['pollSec'], self.calculate).start()
+    # threading.Timer(env.str('pollSec'), self.calculate).start()
     iTime = self.get_idle_duration()
     activeStatus = False
-    if iTime < client['inactiveThreshold']:
+    if iTime < env.int('inactiveThreshold'):
       activeStatus = True
     #print ("Active: %d  Time: %d" %(activeStatus, iTime))
     return activeStatus
@@ -69,7 +69,7 @@ def sendIdleStatus(x):
 
   # Send activity to server
   try:
-    myresponce = requests.post(client['RestURL'] + 'items/' + client['OHItem'], data, auth=(client['User'],client['Secret']), timeout=3.0)
+    myresponce = requests.post(env.str('RestURL') + 'items/' + env.str('OHItem'), data, auth=(env.str('User'),env.str('Secret')), timeout=3.0)
   except (requests.ConnectTimeout, requests.ConnectionError) as e:
     print ("Connection error")
     print(str(e))
@@ -103,8 +103,8 @@ def activeLogicPeriodic():
 # Schedule tasks
 if __name__ == "__main__":
     activeLogicEdge()
-    schedule.every(client['pollSec']).seconds.do(activeLogicEdge)
-    schedule.every(client['ServerUpdateRate']).seconds.do(activeLogicPeriodic)
+    schedule.every(env.int('pollSec')).seconds.do(activeLogicEdge)
+    schedule.every(env.int('ServerUpdateRate')).seconds.do(activeLogicPeriodic)
 
 
 # Defind action when this program closes
